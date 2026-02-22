@@ -1,13 +1,17 @@
-import React, { useMemo } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Video } from 'expo-av';
+import { Ionicons } from '@expo/vector-icons';
 import { useAppState } from '../context/AppStateContext';
 
 export function FolderDetailScreen() {
   const route = useRoute<any>();
+  const navigation = useNavigation<any>();
   const { folderSaves, folders, videos } = useAppState();
   const folderId = route.params?.folderId as string;
+  const [exporting, setExporting] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const folder = folders.find((item) => item.id === folderId);
   const savedIds = folderSaves[folderId] ?? [];
@@ -16,9 +20,33 @@ export function FolderDetailScreen() {
     return videos.filter((video) => savedIds.includes(video.id));
   }, [videos, savedIds]);
 
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const handleExport = () => {
+    if (exporting) return;
+    setExporting(true);
+    timeoutRef.current = setTimeout(() => {
+      setExporting(false);
+      navigation.navigate('ExportResults', { folderId });
+    }, 1200);
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{folder?.name ?? 'Folder'}</Text>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>{folder?.name ?? 'Folder'}</Text>
+          <Text style={styles.subtitle}>{savedVideos.length} saved</Text>
+        </View>
+        <Pressable style={styles.exportButton} onPress={handleExport}>
+          <Ionicons name="share-outline" size={18} color="#000" />
+          <Text style={styles.exportText}>{exporting ? 'Generating…' : 'Export'}</Text>
+        </Pressable>
+      </View>
 
       {savedVideos.length === 0 ? (
         <View style={styles.empty}>
@@ -32,15 +60,15 @@ export function FolderDetailScreen() {
           renderItem={({ item }) => (
             <View style={styles.card}>
               <Video
-                source={{ uri: item.uri }}
+                source={{ uri: item.videoUri }}
                 style={styles.thumbnail}
                 resizeMode="cover"
                 isMuted
                 shouldPlay={false}
               />
               <View style={styles.meta}>
-                <Text style={styles.caption}>{item.caption}</Text>
-                <Text style={styles.creator}>{item.creator}</Text>
+                <Text style={styles.caption}>{item.title}</Text>
+                <Text style={styles.creator}>{item.caption}</Text>
               </View>
             </View>
           )}
@@ -56,12 +84,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     paddingTop: 16,
   },
+  header: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   title: {
     color: '#fff',
     fontSize: 20,
     fontWeight: '700',
-    paddingHorizontal: 16,
-    marginBottom: 12,
+  },
+  subtitle: {
+    color: '#777',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fff',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+  },
+  exportText: {
+    color: '#000',
+    fontWeight: '600',
+    fontSize: 13,
   },
   list: {
     paddingHorizontal: 16,

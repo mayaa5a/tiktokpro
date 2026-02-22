@@ -16,6 +16,7 @@ import { InboxScreen } from './src/screens/InboxScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SavedScreen } from './src/screens/SavedScreen';
 import { FolderDetailScreen } from './src/screens/FolderDetailScreen';
+import { ExportResultsScreen } from './src/screens/ExportResultsScreen';
 
 const Tab = createBottomTabNavigator();
 const ProfileStack = createNativeStackNavigator();
@@ -32,6 +33,7 @@ function ProfileStackScreen() {
       <ProfileStack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
       <ProfileStack.Screen name="Saved" component={SavedScreen} options={{ title: 'Saved' }} />
       <ProfileStack.Screen name="FolderDetail" component={FolderDetailScreen} options={{ title: 'Folder' }} />
+      <ProfileStack.Screen name="ExportResults" component={ExportResultsScreen} options={{ headerShown: false }} />
     </ProfileStack.Navigator>
   );
 }

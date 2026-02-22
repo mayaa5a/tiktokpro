@@ -29,7 +29,7 @@ export function VideoCard({ item, isActive, onPressSave, saved }: VideoCardProps
     <View style={styles.container}>
       <Video
         ref={videoRef}
-        source={{ uri: item.uri }}
+        source={{ uri: item.videoUri }}
         style={styles.video}
         resizeMode={ResizeMode.COVER}
         isLooping
@@ -38,7 +38,8 @@ export function VideoCard({ item, isActive, onPressSave, saved }: VideoCardProps
       />
       <View style={styles.overlay}>
         <View style={styles.left}>
-          <Text style={styles.creator}>{item.creator}</Text>
+          <Text style={styles.creator}>{item.creator ?? '@tokpro'}</Text>
+          <Text style={styles.caption}>{item.title}</Text>
           <Text style={styles.caption}>{item.caption}</Text>
           <Text style={styles.tags}>{item.tags.join(' ')}</Text>
         </View>

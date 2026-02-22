@@ -1,18 +1,31 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Folder } from '../data/defaultFolders';
 
 export type SaveModalProps = {
   visible: boolean;
   folders: Folder[];
+  savedFolderIds: string[];
+  folderCounts: Record<string, number>;
   onClose: () => void;
   onSelectFolder: (folderId: string) => void;
   onCreateFolder: (name: string) => Promise<void>;
 };
 
-export function SaveModal({ visible, folders, onClose, onSelectFolder, onCreateFolder }: SaveModalProps) {
+export function SaveModal({
+  visible,
+  folders,
+  savedFolderIds,
+  folderCounts,
+  onClose,
+  onSelectFolder,
+  onCreateFolder,
+}: SaveModalProps) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
+
+  const savedSet = useMemo(() => new Set(savedFolderIds), [savedFolderIds]);
 
   async function handleCreate() {
     if (!name.trim()) return;
@@ -25,8 +38,13 @@ export function SaveModal({ visible, folders, onClose, onSelectFolder, onCreateF
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
-          <View style={styles.handle} />
-          <Text style={styles.title}>Save to folder</Text>
+          <View style={styles.header}>
+            <View style={styles.handle} />
+            <Text style={styles.title}>Save to folder</Text>
+            <Pressable style={styles.closeButton} onPress={onClose}>
+              <Ionicons name="close" size={18} color="#fff" />
+            </Pressable>
+          </View>
 
           <View style={styles.list}>
             {folders.map((folder) => (
@@ -35,7 +53,15 @@ export function SaveModal({ visible, folders, onClose, onSelectFolder, onCreateF
                 style={styles.folderRow}
                 onPress={() => onSelectFolder(folder.id)}
               >
-                <Text style={styles.folderName}>{folder.name}</Text>
+                <View style={styles.folderLeft}>
+                  <Text style={styles.folderName}>{folder.name}</Text>
+                  <Text style={styles.folderCount}>{folderCounts[folder.id] ?? 0} saved</Text>
+                </View>
+                {savedSet.has(folder.id) ? (
+                  <Ionicons name="checkmark-circle" size={20} color="#ffd54f" />
+                ) : (
+                  <Ionicons name="ellipse-outline" size={20} color="#333" />
+                )}
               </Pressable>
             ))}
           </View>
@@ -45,7 +71,7 @@ export function SaveModal({ visible, folders, onClose, onSelectFolder, onCreateF
               <TextInput
                 value={name}
                 onChangeText={setName}
-                placeholder="Folder name"
+                placeholder="Folder name..."
                 placeholderTextColor="#666"
                 style={styles.input}
               />
@@ -80,34 +106,59 @@ const styles = StyleSheet.create({
     padding: 16,
     maxHeight: '70%',
   },
+  header: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 8,
+  },
   handle: {
     width: 48,
     height: 4,
     borderRadius: 2,
     backgroundColor: '#444',
-    alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   title: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 12,
     textAlign: 'center',
+  },
+  closeButton: {
+    position: 'absolute',
+    right: 4,
+    top: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1f1f1f',
   },
   list: {
     gap: 10,
     marginBottom: 16,
+    marginTop: 12,
   },
   folderRow: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 12,
     backgroundColor: '#1f1f1f',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  folderLeft: {
+    gap: 4,
   },
   folderName: {
     color: '#fff',
     fontSize: 14,
+  },
+  folderCount: {
+    color: '#888',
+    fontSize: 12,
   },
   newFolderButton: {
     paddingVertical: 12,

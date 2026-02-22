@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { defaultFolders, Folder } from '../data/defaultFolders';
 import { seedVideos, VideoItem } from '../data/seedVideos';
+import { seedFolderSavesByName } from '../data/seedFolderSaves';
 import { getJson, setJson } from '../storage/storage';
 
 export type FolderSaves = Record<string, string[]>;
@@ -11,13 +12,14 @@ type AppState = {
   folderSaves: FolderSaves;
   createFolder: (name: string) => Promise<Folder | null>;
   saveVideoToFolder: (videoId: string, folderId: string) => Promise<void>;
+  unsaveVideoFromFolder: (videoId: string, folderId: string) => Promise<void>;
   isVideoSaved: (videoId: string) => boolean;
   getFoldersForVideo: (videoId: string) => Folder[];
 };
 
 const STORAGE_KEYS = {
   folders: 'folders',
-  folderSaves: 'folderSaves',
+  folderSaves: 'tokpro_folderSaves_v1',
 };
 
 const AppStateContext = createContext<AppState | null>(null);
@@ -28,6 +30,29 @@ function buildEmptySaves(folders: Folder[]): FolderSaves {
     initial[folder.id] = [];
   });
   return initial;
+}
+
+function ensureNYCTripFolder(folders: Folder[]): Folder[] {
+  const hasNYCTrip = folders.some((folder) => folder.name === 'NYC Trip');
+  if (hasNYCTrip) return folders;
+  const hasF1 = folders.some((folder) => folder.id === 'f1');
+  const nycFolder: Folder = {
+    id: hasF1 ? `${Date.now()}-nyc` : 'f1',
+    name: 'NYC Trip',
+    createdAt: Date.now(),
+  };
+  return [nycFolder, ...folders];
+}
+
+function mergeSeedSaves(base: FolderSaves, folders: Folder[]): FolderSaves {
+  const next: FolderSaves = { ...base };
+  Object.entries(seedFolderSavesByName).forEach(([folderName, videoIds]) => {
+    const folder = folders.find((item) => item.name === folderName);
+    if (!folder) return;
+    const existing = next[folder.id] ?? [];
+    next[folder.id] = Array.from(new Set([...existing, ...videoIds]));
+  });
+  return next;
 }
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
@@ -44,16 +69,28 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (!isMounted) return;
 
       if (storedFolders && storedFolders.length > 0) {
-        setFolders(storedFolders);
+        const ensured = ensureNYCTripFolder(storedFolders);
+        setFolders(ensured);
+        if (ensured.length !== storedFolders.length) {
+          await setJson(STORAGE_KEYS.folders, ensured);
+        }
       } else {
         await setJson(STORAGE_KEYS.folders, defaultFolders);
       }
 
+      const baseFolders = storedFolders && storedFolders.length > 0
+        ? ensureNYCTripFolder(storedFolders)
+        : defaultFolders;
+
       if (storedSaves) {
-        setFolderSaves(storedSaves);
+        const withAllFolders = { ...storedSaves };
+        baseFolders.forEach((folder) => {
+          if (!withAllFolders[folder.id]) withAllFolders[folder.id] = [];
+        });
+        setFolderSaves(withAllFolders);
+        await setJson(STORAGE_KEYS.folderSaves, withAllFolders);
       } else {
-        const baseFolders = storedFolders && storedFolders.length > 0 ? storedFolders : defaultFolders;
-        const initial = buildEmptySaves(baseFolders);
+        const initial = mergeSeedSaves(buildEmptySaves(baseFolders), baseFolders);
         setFolderSaves(initial);
         await setJson(STORAGE_KEYS.folderSaves, initial);
       }
@@ -98,6 +135,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     await setJson(STORAGE_KEYS.folderSaves, next);
   }, [folderSaves]);
 
+  const unsaveVideoFromFolder = useCallback(async (videoId: string, folderId: string) => {
+    const existing = folderSaves[folderId] ?? [];
+    if (!existing.includes(videoId)) return;
+    const next = {
+      ...folderSaves,
+      [folderId]: existing.filter((id) => id !== videoId),
+    };
+    setFolderSaves(next);
+    await setJson(STORAGE_KEYS.folderSaves, next);
+  }, [folderSaves]);
+
   const savedMap = useMemo(() => {
     const map: Record<string, string[]> = {};
     Object.entries(folderSaves).forEach(([folderId, videoIds]) => {
@@ -124,9 +172,19 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     folderSaves,
     createFolder,
     saveVideoToFolder,
+    unsaveVideoFromFolder,
     isVideoSaved,
     getFoldersForVideo,
-  }), [videos, folders, folderSaves, createFolder, saveVideoToFolder, isVideoSaved, getFoldersForVideo]);
+  }), [
+    videos,
+    folders,
+    folderSaves,
+    createFolder,
+    saveVideoToFolder,
+    unsaveVideoFromFolder,
+    isVideoSaved,
+    getFoldersForVideo,
+  ]);
 
   return (
     <AppStateContext.Provider value={value}>

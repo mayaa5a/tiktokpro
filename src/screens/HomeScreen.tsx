@@ -9,7 +9,7 @@ import { VideoItem } from '../data/seedVideos';
 const { height } = Dimensions.get('window');
 
 export function HomeScreen() {
-  const { videos, folders, saveVideoToFolder, createFolder, isVideoSaved } = useAppState();
+  const { videos, folders, folderSaves, saveVideoToFolder, createFolder, isVideoSaved, getFoldersForVideo } = useAppState();
   const [activeId, setActiveId] = useState(videos[0]?.id ?? '');
   const [saveOpen, setSaveOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
@@ -68,6 +68,8 @@ export function HomeScreen() {
       <SaveModal
         visible={saveOpen}
         folders={folders}
+        savedFolderIds={selectedVideo ? getFoldersForVideo(selectedVideo.id).map((folder) => folder.id) : []}
+        folderCounts={Object.fromEntries(Object.entries(folderSaves).map(([id, ids]) => [id, ids.length]))}
         onClose={() => setSaveOpen(false)}
         onSelectFolder={handleSelectFolder}
         onCreateFolder={handleCreateFolder}
